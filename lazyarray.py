@@ -12,7 +12,9 @@ from copy import deepcopy
 import collections
 from functools import wraps, reduce
 import logging
-from typing import Callable, Union
+from typing import Callable, Union,Tuple
+from collections.abc import Sequence
+
 
 import numpy as np
 try:
@@ -51,7 +53,7 @@ def requires_shape(meth : Callable):
     return wrapped_meth
 
 
-def full_address(addr : Union[list,np.ndarray[np.int64]], full_shape : (tuple)):
+def full_address(addr : Union[slice, int, Tuple[Union[slice, int]], np.ndarray, Sequence], full_shape : (tuple)):
     print(type(addr))
     print(type(full_shape))
     if not (isinstance(addr, np.ndarray) and addr.dtype == bool and addr.ndim == len(full_shape)):
@@ -65,7 +67,7 @@ def full_address(addr : Union[list,np.ndarray[np.int64]], full_shape : (tuple)):
     return addr
 
 
-def partial_shape(addr : np.ndarray[np.int64], full_shape : (tuple)):
+def partial_shape(addr : Union[slice, int, Tuple[Union[slice, int]], np.ndarray, Sequence], full_shape : (tuple)):
     """
     Calculate the size of the sub-array represented by `addr`
     """
@@ -131,7 +133,7 @@ def lazy_unary_operation(name : str):
     return op
 
 
-def is_array_like(value : Union[int,float]):
+def is_array_like(value : Union[int,float, Callable]):
     # False for numbers, generators, functions, iterators
     if not isinstance(value, collections.Sized):
         return False
@@ -167,7 +169,7 @@ class larray(object):
     """
 
 
-    def __init__(self, value : Union[int,float,bool,np.array, Callable], shape=None, dtype=None):
+    def __init__(self, value : Union[int,float,bool,np.ndarray, Callable], shape=None, dtype=None):
         """
         Create a new lazy array.
 
@@ -233,7 +235,7 @@ class larray(object):
             # todo: add support for NumPy arrays
             raise TypeError("Cannot at present compare equality of lazyarray and {}".format(type(other)))
 
-    def __deepcopy__(self, memo : Union[int,float,bool,np.array,list]):
+    def __deepcopy__(self, memo : Union[int,float,bool,np.ndarray,list]):
         print((type(memo)))
         obj = type(self).__new__(type(self))
         if isinstance(self.base_value, VectorizedIterable):  # special case, but perhaps need to rethink
@@ -301,21 +303,21 @@ class larray(object):
         hom_ops = all(obj.is_homogeneous for f, obj in self.operations if isinstance(obj, larray))
         return hom_base and hom_ops
 
-    def _partial_shape(self, addr : np.ndarray[np.int64]):
+    def _partial_shape(self, addr : np.ndarray):
         """
         Calculate the size of the sub-array represented by `addr`
         """
         return partial_shape(addr, self._shape)
 
-    def _homogeneous_array(self, addr : Union[list,np.ndarray[np.int64]]):
+    def _homogeneous_array(self, addr : Union[list,np.ndarray]):
         self.check_bounds(addr)
         shape = self._partial_shape(addr)
         return np.ones(shape, type(self.base_value))
 
-    def _full_address(self, addr : Union[list,np.ndarray[np.int64]]):
+    def _full_address(self, addr : Union[list,np.ndarray]):
         return full_address(addr, self._shape)
 
-    def _array_indices(self, addr : Union[list,np.ndarray[np.int64]]):
+    def _array_indices(self, addr : Union[list,np.ndarray]):
         self.check_bounds(addr)
 
         def axis_indices(x, max):
@@ -356,7 +358,7 @@ class larray(object):
                 raise NotImplementedError("Only 1D and 2D arrays supported")
 
     @requires_shape
-    def __getitem__(self, addr : Union[list,np.ndarray[np.int64]]):
+    def __getitem__(self, addr : Union[list,np.ndarray]):
         """
         Return one or more items from the array, as for NumPy arrays.
 
@@ -365,7 +367,7 @@ class larray(object):
         """
         return self._partially_evaluate(addr, simplify=False)
 
-    def _partially_evaluate(self, addr : Union[list,np.ndarray[np.int64]], simplify=False):
+    def _partially_evaluate(self, addr : Union[list,np.ndarray], simplify=False):
         """
         Return part of the lazy array.
         """
@@ -405,7 +407,7 @@ class larray(object):
         return self._apply_operations(base_val, addr, simplify=simplify)
 
     @requires_shape
-    def check_bounds(self, addr : Union[list,np.ndarray[np.int64]]):
+    def check_bounds(self, addr : Union[list,np.ndarray]):
         """
         Check whether the given address is within the array bounds.
         """
