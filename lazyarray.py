@@ -2,7 +2,6 @@
 """
 lazyarray is a Python package that provides a lazily-evaluated numerical array
 class, ``larray``, based on and compatible with NumPy arrays.
-
 Copyright Andrew P. Davison, Joël Chavas and Elodie Legouée (CNRS), 2012-2020
 """
 
@@ -12,6 +11,9 @@ from copy import deepcopy
 import collections
 from functools import wraps, reduce
 import logging
+from typing import Callable, Union,Tuple, overload, Literal
+from collections.abc import Sequence
+
 
 import numpy as np
 try:
@@ -27,13 +29,13 @@ __version__ = "0.4.0"
 logger = logging.getLogger("lazyarray")
 
 
-def check_shape(meth):
+def check_shape(meth : Callable):
     """
     Decorator for larray magic methods, to ensure that the operand has
     the same shape as the array.
     """
     @wraps(meth)
-    def wrapped_meth(self, val):
+    def wrapped_meth(self, val : Union[int,float]):
         if isinstance(val, (larray, np.ndarray)) and val.shape:
             if val.shape != self._shape:
                 raise ValueError("shape mismatch: objects cannot be broadcast to a single shape")
@@ -41,7 +43,7 @@ def check_shape(meth):
     return wrapped_meth
 
 
-def requires_shape(meth):
+def requires_shape(meth : Callable):
     @wraps(meth)
     def wrapped_meth(self, *args, **kwargs):
         if self._shape is None:
@@ -50,7 +52,9 @@ def requires_shape(meth):
     return wrapped_meth
 
 
-def full_address(addr, full_shape):
+def full_address(addr : Union[slice, int, Tuple[Union[slice, int]], np.ndarray, Sequence], full_shape : (tuple)):
+    print(type(addr))
+    print(type(full_shape))
     if not (isinstance(addr, np.ndarray) and addr.dtype == bool and addr.ndim == len(full_shape)):
         if not isinstance(addr, tuple):
             addr = (addr,)
@@ -62,7 +66,7 @@ def full_address(addr, full_shape):
     return addr
 
 
-def partial_shape(addr, full_shape):
+def partial_shape(addr : Union[slice, int, Tuple[Union[slice, int]], np.ndarray, Sequence], full_shape : (tuple)):
     """
     Calculate the size of the sub-array represented by `addr`
     """
@@ -90,7 +94,7 @@ def partial_shape(addr, full_shape):
         return tuple([x for x in shape if x is not None])  # remove empty dimensions
 
 
-def reverse(func):
+def reverse(func : Callable):
     """Given a function f(a, b), returns f(b, a)"""
     @wraps(func)
     def reversed_func(a, b):
@@ -102,7 +106,7 @@ def reverse(func):
 # see http://mail.python.org/pipermail/python-dev/2000-April/003397.html
 
 
-def lazy_operation(name, reversed=False):
+def lazy_operation(name :str, reversed=False):
     def op(self, val):
         new_map = deepcopy(self)
         f = getattr(operator, name)
@@ -113,14 +117,14 @@ def lazy_operation(name, reversed=False):
     return check_shape(op)
 
 
-def lazy_inplace_operation(name):
+def lazy_inplace_operation(name : str):
     def op(self, val):
         self.operations.append((getattr(operator, name), val))
         return self
     return check_shape(op)
 
 
-def lazy_unary_operation(name):
+def lazy_unary_operation(name : str):
     def op(self):
         new_map = deepcopy(self)
         new_map.operations.append((getattr(operator, name), None))
@@ -128,7 +132,7 @@ def lazy_unary_operation(name):
     return op
 
 
-def is_array_like(value):
+def is_array_like(value : Union[int,float,bool,np.ndarray, Callable]): 
     # False for numbers, generators, functions, iterators
     if not isinstance(value, collections.Sized):
         return False
@@ -155,7 +159,6 @@ class larray(object):
       - if the array is created from a function `f(i)` or `f(i,j)`, then
         elements are only evaluated when they are accessed. Any operations
         performed on the array are also queued up to be executed on access.
-
     Two use cases for the latter are:
       - to save memory for very large arrays by accessing them one row or
         column at a time: the entire array need never be in memory.
@@ -164,14 +167,12 @@ class larray(object):
     """
 
 
-    def __init__(self, value, shape=None, dtype=None):
+    def __init__(self, value : Union[int,float,bool,np.ndarray, Callable], shape=None, dtype=None):
         """
         Create a new lazy array.
-
         `value` : may be an int, float, bool, NumPy array, iterator,
                   generator or a function, `f(i)` or `f(i,j)`, depending on the
                   dimensions of the array.
-
         `f(i,j)` should return a single number when `i` and `j` are integers,
         and a 1D array when either `i` or `j` or both is a NumPy array (in the
         latter case the two arrays must have equal lengths).
@@ -230,7 +231,8 @@ class larray(object):
             # todo: add support for NumPy arrays
             raise TypeError("Cannot at present compare equality of lazyarray and {}".format(type(other)))
 
-    def __deepcopy__(self, memo):
+    def __deepcopy__(self, memo : Union[int,float,bool,np.ndarray,list]):
+        print((type(memo)))
         obj = type(self).__new__(type(self))
         if isinstance(self.base_value, VectorizedIterable):  # special case, but perhaps need to rethink
             obj.base_value = self.base_value                 # whether deepcopy is appropriate everywhere
@@ -255,7 +257,7 @@ class larray(object):
                                                                              self.dtype,
                                                                              self.operations)
 
-    def _set_shape(self, value):
+    def _set_shape(self, value : Union[int,float,np.float]):
         if (hasattr(self.base_value, "shape") and
                 self.base_value.shape and   # values of type np.float have an empty shape
                     self.base_value.shape != value):
@@ -297,21 +299,21 @@ class larray(object):
         hom_ops = all(obj.is_homogeneous for f, obj in self.operations if isinstance(obj, larray))
         return hom_base and hom_ops
 
-    def _partial_shape(self, addr):
+    def _partial_shape(self, addr : np.ndarray):
         """
         Calculate the size of the sub-array represented by `addr`
         """
         return partial_shape(addr, self._shape)
 
-    def _homogeneous_array(self, addr):
+    def _homogeneous_array(self, addr : Union[list,np.ndarray]):
         self.check_bounds(addr)
         shape = self._partial_shape(addr)
         return np.ones(shape, type(self.base_value))
 
-    def _full_address(self, addr):
+    def _full_address(self, addr : Union[list,np.ndarray]):
         return full_address(addr, self._shape)
 
-    def _array_indices(self, addr):
+    def _array_indices(self, addr : Union[list,np.ndarray]):
         self.check_bounds(addr)
 
         def axis_indices(x, max):
@@ -352,16 +354,15 @@ class larray(object):
                 raise NotImplementedError("Only 1D and 2D arrays supported")
 
     @requires_shape
-    def __getitem__(self, addr):
+    def __getitem__(self, addr : Union[list,np.ndarray]):
         """
         Return one or more items from the array, as for NumPy arrays.
-
         `addr` may be a single integer, a slice, a NumPy boolean array or a
         NumPy integer array.
         """
         return self._partially_evaluate(addr, simplify=False)
 
-    def _partially_evaluate(self, addr, simplify=False):
+    def _partially_evaluate(self, addr : Union[list,np.ndarray], simplify=False):
         """
         Return part of the lazy array.
         """
@@ -401,14 +402,14 @@ class larray(object):
         return self._apply_operations(base_val, addr, simplify=simplify)
 
     @requires_shape
-    def check_bounds(self, addr):
+    def check_bounds(self, addr : Union[list,np.ndarray]):
         """
         Check whether the given address is within the array bounds.
         """
-        def is_boolean_array(arr):
+        def is_boolean_array(arr : Union[list,np.ndarray[np.int64]]):
             return hasattr(arr, 'dtype') and arr.dtype == bool
 
-        def check_axis(x, size):
+        def check_axis(x, size : Union[int,float]):
             if isinstance(x, (int, np.integer)):
                 lower = upper = x
             elif isinstance(x, slice):
@@ -449,7 +450,6 @@ class larray(object):
         """
         Add the function `f(x)` to the list of the operations to be performed,
         where `x` will be a scalar or a numpy array.
-
         >>> m = larray(4, shape=(2,2))
         >>> m.apply(np.sqrt)
         >>> m.evaluate()
@@ -476,7 +476,6 @@ class larray(object):
     def evaluate(self, simplify=False, empty_val=0):
         """
         Return the lazy array as a real NumPy array.
-
         If the array is homogeneous and ``simplify`` is ``True``, return a
         single numerical value.
         """
@@ -512,7 +511,8 @@ class larray(object):
             raise ValueError("invalid base value for array")
         return self._apply_operations(x, simplify=simplify)
 
-    def __call__(self, arg):
+    def __call__(self, arg : str):
+        print('call',type(arg))
         if callable(self.base_value):
             if isinstance(arg, larray):
                 new_map = deepcopy(arg)
@@ -554,7 +554,7 @@ class larray(object):
     __abs__ = lazy_unary_operation('abs')
 
 
-def _build_ufunc(func):
+def _build_ufunc(func : Callable):
     """Return a ufunc that works with lazy arrays"""
     def larray_compatible_ufunc(x):
         if isinstance(x, larray):
@@ -581,3 +581,45 @@ for name in dir(np):
     obj = getattr(np, name)
     if isinstance(obj, np.ufunc):
         namespace[name] = _build_ufunc(obj)
+"""
+from_number = larray(20.0)
+from_list = larray([0, 1, 1, 2, 3, 5, 8])
+import numpy as np
+from_array = larray(np.arange(6).reshape((2, 3)))
+from_iter = larray(iter(range(8)))
+from_gen = larray((x**2 + 2*x + 3 for x in range(5)))
+from_func2 = larray(lambda i: 2*i, shape=(6,))
+def f(i, j):
+    return i*np.sin(np.pi*j/100)
+from_func = larray(f)
+from_list.shape
+from_array.shape
+print(from_number.shape)
+print(from_iter.shape)
+print(from_gen.shape)
+print(from_func.shape)
+from_list.evaluate()
+from_array.evaluate()
+from_number.shape = (2, 2)
+from_number.evaluate(simplify=True)
+from_iter.shape = (2, 4)
+from_iter.evaluate()
+from_gen.shape = (5,)
+from_gen.evaluate()
+from_func.shape = (3, 4)
+from_func.evaluate()
+a = from_list + 2
+b = 2*a
+b.evaluate()
+a = 1.0/(from_list + 1)
+a.evaluate()
+(from_list < 2).evaluate()
+x = larray(lambda i,j: 2*i + 3*j, shape=(4, 5))
+np.array([[1, 2, 3, 4]]).repeat(3, axis=0)
+np.array([0, -1, 2])
+x.base_value
+full_address(3.4,(4,5))
+print(from_number.__eq__(from_number))
+print(from_number.__deepcopy__(from_number))
+print(from_number.__call__('*'))"""
+#print(from_number._set_shape())
