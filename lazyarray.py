@@ -11,7 +11,11 @@ from copy import deepcopy
 import collections
 from functools import wraps, reduce
 import logging
+<<<<<<< HEAD
 from typing import Callable, Union,Tuple, overload, Literal
+=======
+from typing import Callable, Union,Tuple
+>>>>>>> 18135534cc4996a12120d8e5487e8f6970e7ad1c
 from collections.abc import Sequence
 
 
@@ -132,7 +136,11 @@ def lazy_unary_operation(name : str):
     return op
 
 
+<<<<<<< HEAD
 def is_array_like(value : Union[int,float,bool,np.ndarray, Callable]): 
+=======
+def is_array_like(value : Union[int,float, Callable]):
+>>>>>>> 18135534cc4996a12120d8e5487e8f6970e7ad1c
     # False for numbers, generators, functions, iterators
     if not isinstance(value, collections.Sized):
         return False
