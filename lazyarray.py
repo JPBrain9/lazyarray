@@ -11,11 +11,9 @@ from copy import deepcopy
 import collections
 from functools import wraps, reduce
 import logging
-<<<<<<< HEAD
-from typing import Callable, Union,Tuple, overload, Literal
-=======
-from typing import Callable, Union,Tuple
->>>>>>> 18135534cc4996a12120d8e5487e8f6970e7ad1c
+
+from typing import Callable, Union,Tuple, overload, Literal, Any
+
 from collections.abc import Sequence
 
 
@@ -70,7 +68,8 @@ def full_address(addr : Union[slice, int, Tuple[Union[slice, int]], np.ndarray, 
     return addr
 
 
-def partial_shape(addr : Union[slice, int, Tuple[Union[slice, int]], np.ndarray, Sequence], full_shape : (tuple)):
+
+def partial_shape(addr : Union[np.ndarray], full_shape : tuple):
     """
     Calculate the size of the sub-array represented by `addr`
     """
@@ -136,11 +135,9 @@ def lazy_unary_operation(name : str):
     return op
 
 
-<<<<<<< HEAD
+
 def is_array_like(value : Union[int,float,bool,np.ndarray, Callable]): 
-=======
-def is_array_like(value : Union[int,float, Callable]):
->>>>>>> 18135534cc4996a12120d8e5487e8f6970e7ad1c
+
     # False for numbers, generators, functions, iterators
     if not isinstance(value, collections.Sized):
         return False
@@ -157,7 +154,7 @@ def is_array_like(value : Union[int,float, Callable]):
         # True.
         return False
     return True
-
+print(is_array_like(5))
 
 
 class larray(object):
@@ -174,8 +171,14 @@ class larray(object):
         on different nodes or in different threads.
     """
 
-
-    def __init__(self, value : Union[int,float,bool,np.ndarray, Callable], shape=None, dtype=None):
+    @overload
+    def __init__(self, value : Union[int,float,bool,np.ndarray, Callable], shape=None, dtype=None) -> None : ... 
+        
+    @overload
+    def __init__(self, value : Union[np.ndarray], shape=None, dtype=None) -> None : ...
+    
+    
+    def __init__(self, value, shape=None, dtype=None):
         """
         Create a new lazy array.
         `value` : may be an int, float, bool, NumPy array, iterator,
@@ -277,7 +280,7 @@ class larray(object):
     shape = property(fget=lambda self: self._shape,
                      fset=_set_shape, doc="Shape of the array")
 
-    @property
+    @property # type : ignore
     @requires_shape
     def nrows(self):
         """Size of the first dimension of the array."""
@@ -307,21 +310,21 @@ class larray(object):
         hom_ops = all(obj.is_homogeneous for f, obj in self.operations if isinstance(obj, larray))
         return hom_base and hom_ops
 
-    def _partial_shape(self, addr : np.ndarray):
+    def _partial_shape(self, addr : Union[np.ndarray]):
         """
         Calculate the size of the sub-array represented by `addr`
         """
         return partial_shape(addr, self._shape)
 
-    def _homogeneous_array(self, addr : Union[list,np.ndarray]):
+    def _homogeneous_array(self, addr : Union[int,np.ndarray,slice]):
         self.check_bounds(addr)
         shape = self._partial_shape(addr)
         return np.ones(shape, type(self.base_value))
 
-    def _full_address(self, addr : Union[list,np.ndarray]):
+    def _full_address(self, addr : Union[int,np.ndarray,slice]):
         return full_address(addr, self._shape)
 
-    def _array_indices(self, addr : Union[list,np.ndarray]):
+    def _array_indices(self, addr : Union[int,np.ndarray,slice]):
         self.check_bounds(addr)
 
         def axis_indices(x, max):
@@ -362,7 +365,7 @@ class larray(object):
                 raise NotImplementedError("Only 1D and 2D arrays supported")
 
     @requires_shape
-    def __getitem__(self, addr : Union[list,np.ndarray]):
+    def __getitem__(self, addr : Union[int,np.ndarray,slice]):
         """
         Return one or more items from the array, as for NumPy arrays.
         `addr` may be a single integer, a slice, a NumPy boolean array or a
@@ -370,7 +373,7 @@ class larray(object):
         """
         return self._partially_evaluate(addr, simplify=False)
 
-    def _partially_evaluate(self, addr : Union[list,np.ndarray], simplify=False):
+    def _partially_evaluate(self,addr : Union[int,np.ndarray,slice], simplify=False):
         """
         Return part of the lazy array.
         """
@@ -410,11 +413,11 @@ class larray(object):
         return self._apply_operations(base_val, addr, simplify=simplify)
 
     @requires_shape
-    def check_bounds(self, addr : Union[list,np.ndarray]):
+    def check_bounds(self, addr : Union[int,np.ndarray,slice]):
         """
         Check whether the given address is within the array bounds.
         """
-        def is_boolean_array(arr : Union[list,np.ndarray[np.int64]]):
+        def is_boolean_array(arr : Union[list[Any], np.ndarray]):
             return hasattr(arr, 'dtype') and arr.dtype == bool
 
         def check_axis(x, size : Union[int,float]):
