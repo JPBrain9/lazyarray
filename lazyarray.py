@@ -14,6 +14,7 @@ import logging
 from typing import Callable, Union,Tuple, overload, Literal, Any,NoReturn 
 
 from collections.abc import Sequence
+from abc import ABCMeta, abstractmethod
 
 
 import numpy as np
@@ -30,6 +31,17 @@ __version__ = "0.4.0"
 logger = logging.getLogger("lazyarray")
 
 
+class VectorizedIterable(metaclass=ABCMeta):
+    pass
+    @abstractmethod
+    def a(self): pass
+#def VectorizedIterable(object):
+    """
+    Base class for any class which has a method `next(n)`, i.e., where you
+    can choose how many values to return rather than just returning one at a
+    time.
+    """
+    #pass
 
 def check_shape(meth : Callable):
     """
@@ -374,7 +386,7 @@ class larray(object):
         """
         return self._partially_evaluate(addr, simplify=False)
 
-    def _partially_evaluate(self,addr : Union[np.ndarray], simplify=False):
+    def _partially_evaluate(self,addr : np.ndarray, simplify=False):
         """
         Return part of the lazy array.
         """
@@ -421,7 +433,18 @@ class larray(object):
         def is_boolean_array(arr : Union[ np.ndarray]):
             return hasattr(arr, 'dtype') and arr.dtype == bool
 
-        def check_axis(x, size : Union[int,float]):
+
+        @overload
+        def check_axis(x, size : Union[int,np.integer]) -> None: ...
+        @overload
+        def check_axis(x, size : Union[slice]) -> None: ...
+        @overload
+        def check_axis(x, size : Union[collections.Sized]) -> None: ...
+                                       
+
+
+
+        def check_axis(x, size ):
             if isinstance(x, (int, np.integer)):
                 lower = upper = x
             elif isinstance(x, slice):
@@ -578,13 +601,7 @@ def _build_ufunc(func : Callable):
     return larray_compatible_ufunc
 
 
-class VectorizedIterable(object):
-    """
-    Base class for any class which has a method `next(n)`, i.e., where you
-    can choose how many values to return rather than just returning one at a
-    time.
-    """
-    pass
+
 
 
 # build lazy-array compatible versions of NumPy ufuncs
