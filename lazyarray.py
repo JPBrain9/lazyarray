@@ -34,7 +34,8 @@ logger = logging.getLogger("lazyarray")
 class VectorizedIterable(metaclass=ABCMeta):
     pass
     @abstractmethod
-    def a(self): pass
+    def next(self,n : int):
+        return NotImplemented
 #def VectorizedIterable(object):
     """
     Base class for any class which has a method `next(n)`, i.e., where you
