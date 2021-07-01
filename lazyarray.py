@@ -11,7 +11,7 @@ from copy import deepcopy
 import collections
 from functools import wraps, reduce
 import logging
-from typing import Callable, Union,Tuple, overload, Literal, Any,NoReturn 
+from typing import Callable, Union,Tuple, overload, Literal, Any,NoReturn ,List
 
 from collections.abc import Sequence
 from abc import ABCMeta, abstractmethod
@@ -30,11 +30,12 @@ __version__ = "0.4.0"
 
 logger = logging.getLogger("lazyarray")
 
+NotImplementedType = type(NotImplemented)
 
 class VectorizedIterable(metaclass=ABCMeta):
     pass
     @abstractmethod
-    def next(self,n : int):
+    def next(self,n : int) -> type(NotImplemented):
         return NotImplemented
 #def VectorizedIterable(object):
     """
@@ -44,7 +45,7 @@ class VectorizedIterable(metaclass=ABCMeta):
     """
     #pass
 
-def check_shape(meth : Callable):
+def check_shape(meth : Callable) -> Union[tuple,Callable] :
     """
     Decorator for larray magic methods, to ensure that the operand has
     the same shape as the array.
@@ -58,7 +59,7 @@ def check_shape(meth : Callable):
     return wrapped_meth
 
 
-def requires_shape(meth : Callable):
+def requires_shape(meth : Callable) -> Callable : #à tester
     @wraps(meth)
     def wrapped_meth(self, *args, **kwargs):
         if self._shape is None:
@@ -66,8 +67,14 @@ def requires_shape(meth : Callable):
         return meth(self, *args, **kwargs)
     return wrapped_meth
 
+@overload
+def full_address(addr : Union[ np.ndarray], full_shape : (tuple)) -> Union[slice, int, Tuple[Union[slice, int]], np.ndarray, Sequence]: ...
+    
 
-def full_address(addr : Union[slice, int, Tuple[Union[slice, int]], np.ndarray, Sequence], full_shape : (tuple)):
+@overload
+def full_address(addr : Union[slice, int, Tuple[Union[slice, int]], np.ndarray, Sequence], full_shape : (tuple)) -> Union[slice, int, Tuple[Union[slice, int]], np.ndarray, Sequence]: ...
+
+def full_address(addr , full_shape : (tuple)) -> Union[slice, int, Tuple[Union[slice, int]], np.ndarray, Sequence]:
     print(type(addr))
     print(type(full_shape))
     if not (isinstance(addr, np.ndarray) and addr.dtype == bool and addr.ndim == len(full_shape)):
@@ -82,7 +89,7 @@ def full_address(addr : Union[slice, int, Tuple[Union[slice, int]], np.ndarray, 
 
 
 
-def partial_shape(addr : Union[np.ndarray], full_shape : tuple):
+def partial_shape(addr : Union[slice, int, Tuple[Union[slice, int]], np.ndarray, Sequence], full_shape : tuple):
     """
     Calculate the size of the sub-array represented by `addr`
     """
@@ -186,13 +193,24 @@ class larray(object):
 
     @overload
     def __init__(self, value : Union[np.ndarray], shape=None, dtype=None) -> None : ...
-     
+    
+    @overload
+    def __init__(self, value : Union[int], shape=None, dtype=None) -> None : ...
+    
+    @overload
+    def __init__(self, value : Union[float], shape=None, dtype=None) -> None : ...
+    
+    @overload
+    def __init__(self, value : Union[bool], shape=None, dtype=None) -> None : ...
+    
+    @overload
+    def __init__(self, value : Union[Callable], shape=None, dtype=None) -> None : ...
         
     @overload
-    def __init__(self, value : Union[int,float,bool,np.ndarray, Callable], shape=None, dtype=None) -> None : ...
+    def __init__(self, value : Union[int,bool,np.ndarray, Callable], shape=None, dtype=None) -> None : ...
     
     
-    def __init__(self, value, shape=None, dtype=None):
+    def __init__(self, value :  Union[int,float,bool,np.ndarray, Callable], shape=None, dtype=None):
         """
         Create a new lazy array.
         `value` : may be an int, float, bool, NumPy array, iterator,
