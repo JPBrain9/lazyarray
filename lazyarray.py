@@ -67,14 +67,8 @@ def requires_shape(meth : Callable) -> Callable : #à tester
         return meth(self, *args, **kwargs)
     return wrapped_meth
 
-@overload
-def full_address(addr : Union[ np.ndarray], full_shape : (tuple)) -> Union[slice, int, Tuple[Union[slice, int]], np.ndarray, Sequence]: ...
-    
 
-@overload
-def full_address(addr : Union[slice, int, Tuple[Union[slice, int]], np.ndarray, Sequence], full_shape : (tuple)) -> Union[slice, int, Tuple[Union[slice, int]], np.ndarray, Sequence]: ...
-
-def full_address(addr , full_shape : (tuple)) -> Union[slice, int, Tuple[Union[slice, int]], np.ndarray, Sequence]:
+def full_address(addr : Union[slice, int, Tuple[Union[slice, int]], np.ndarray, Sequence], full_shape : (tuple)) -> Union[slice, int, Tuple[Union[slice, int]], np.ndarray, Sequence]:
     print(type(addr))
     print(type(full_shape))
     if not (isinstance(addr, np.ndarray) and addr.dtype == bool and addr.ndim == len(full_shape)):
@@ -89,7 +83,7 @@ def full_address(addr , full_shape : (tuple)) -> Union[slice, int, Tuple[Union[s
 
 
 
-def partial_shape(addr : Union[slice, int, Tuple[Union[slice, int]], np.ndarray, Sequence], full_shape : tuple):
+def partial_shape(addr : Union[ np.ndarray], full_shape : tuple):
     """
     Calculate the size of the sub-array represented by `addr`
     """
@@ -191,26 +185,8 @@ class larray(object):
         on different nodes or in different threads.
     """
 
-    @overload
-    def __init__(self, value : Union[np.ndarray], shape=None, dtype=None) -> None : ...
     
-    @overload
-    def __init__(self, value : Union[int], shape=None, dtype=None) -> None : ...
-    
-    @overload
-    def __init__(self, value : Union[float], shape=None, dtype=None) -> None : ...
-    
-    @overload
-    def __init__(self, value : Union[bool], shape=None, dtype=None) -> None : ...
-    
-    @overload
-    def __init__(self, value : Union[Callable], shape=None, dtype=None) -> None : ...
-        
-    @overload
-    def __init__(self, value : Union[int,bool,np.ndarray, Callable], shape=None, dtype=None) -> None : ...
-    
-    
-    def __init__(self, value :  Union[int,float,bool,np.ndarray, Callable], shape=None, dtype=None):
+    def __init__(self, value :  Union[float,bool,Callable,int,np.ndarray], shape=None, dtype=None):
         """
         Create a new lazy array.
         `value` : may be an int, float, bool, NumPy array, iterator,
@@ -233,7 +209,7 @@ class larray(object):
             self.dtype = dtype or value.dtype
             self.operations = value.operations  # should deepcopy?
 
-        elif is_array_like(value):  # False for numbers, generators, functions, iterators
+        elif not( isinstance(value,bool ) or isinstance(value,float ) or isinstance(value,int ) or isinstance(value,float ) or isinstance(value,np.ndarray ) or callable(value)) :  # False for numbers, generators, functions, iterators
             if have_scipy and sparse.issparse(value):  # For sparse matrices
                 self.dtype = dtype or value.dtype
             elif not isinstance(value, np.ndarray):
