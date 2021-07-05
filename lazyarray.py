@@ -83,8 +83,9 @@ def full_address(addr : Union[slice, int, Tuple[Union[slice, int]], np.ndarray, 
 
 
 
-def partial_shape(addr : Union[ np.ndarray], full_shape : tuple):
-    """
+def partial_shape(addr : Union[slice, int, Tuple[Union[slice, int]], np.ndarray, Sequence], full_shape : tuple) -> Union[tuple,None] : # type: ignore
+    #type ignore car on un missing return statement alors que tous les cas sont donnés
+    """ 
     Calculate the size of the sub-array represented by `addr`
     """
     def size(x, max):
@@ -104,14 +105,14 @@ def partial_shape(addr : Union[ np.ndarray], full_shape : tuple):
     addr = full_address(addr, full_shape)
     if isinstance(addr, np.ndarray) and addr.dtype == bool:
         return (addr.sum(),)
-    elif all(isinstance(x, collections.Sized) for x in addr):
+    elif not isinstance(addr, slice) and not isinstance(addr, int) and all(isinstance(x, collections.Sized) for x in addr) and isinstance(addr[0],collections.Sized) : #peut on considérer addr comme un slce dans ce  cas ?
         return (len(addr[0]),)
-    else:
-        shape = [size(x, max) for (x, max) in zip(addr, full_shape)]
+    elif isinstance(addr,Sequence):
+        shape = [size(x, max) for (x, max) in zip(addr, full_shape)] #str, tuple, list, dict et set
         return tuple([x for x in shape if x is not None])  # remove empty dimensions
 
 
-def reverse(func : Callable):
+def reverse(func : Callable) -> Callable :
     """Given a function f(a, b), returns f(b, a)"""
     @wraps(func)
     def reversed_func(a, b):
