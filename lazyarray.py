@@ -84,7 +84,7 @@ def full_address(addr : Union[slice, int, Tuple[Union[slice, int]], np.ndarray, 
 
 
 def partial_shape(addr : Union[slice, int, Tuple[Union[slice, int]], np.ndarray, Sequence], full_shape : tuple) -> Union[tuple,None] : # type: ignore
-    #type ignore car on un missing return statement alors que tous les cas sont donnés
+    #type ignore car on a un missing return statement alors que tous les cas sont donnés
     """ 
     Calculate the size of the sub-array represented by `addr`
     """
