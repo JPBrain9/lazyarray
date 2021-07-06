@@ -125,7 +125,7 @@ def reverse(func : Callable) -> Callable :
 
 
 def lazy_operation(name :str, reversed=False):
-    def op(self, val):
+    def op(self, val : any) -> tuple:
         new_map = deepcopy(self)
         f = getattr(operator, name)
         if reversed:
